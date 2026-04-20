@@ -23,6 +23,7 @@
 
 #include "networks.h"
 #include "safeUtil.h"
+#include "PDU.h"
 
 #define MAXBUF 1024
 #define DEBUG_FLAG 1
@@ -40,14 +41,16 @@ int main(int argc, char *argv[])
 	
 	//create the server socket
 	mainServerSocket = tcpServerSetup(portNumber);
-
-	// wait for client to connect
-	clientSocket = tcpAccept(mainServerSocket, DEBUG_FLAG);
-
-	recvFromClient(clientSocket);
+	while(1){
+		// wait for client to connect
+		clientSocket = tcpAccept(mainServerSocket, DEBUG_FLAG);
 	
-	/* close the sockets */
-	close(clientSocket);
+	
+		recvFromClient(clientSocket);
+	
+		/* close the sockets */
+		close(clientSocket);
+	}
 	close(mainServerSocket);
 
 	
@@ -60,7 +63,7 @@ void recvFromClient(int clientSocket)
 	int messageLen = 0;
 	
 	//now get the data from the client_socket
-	if ((messageLen = safeRecv(clientSocket, dataBuffer, MAXBUF, 0)) < 0)
+	if ((messageLen = recvPDU(clientSocket, dataBuffer, MAXBUF)) < 0)
 	{
 		perror("recv call");
 		exit(-1);
@@ -71,7 +74,7 @@ void recvFromClient(int clientSocket)
 		printf("Socket %d: Message received, length: %d Data: %s\n", clientSocket, messageLen, dataBuffer);
 		
 		// send it back to client (just to test sending is working... e.g. debugging)
-		messageLen = safeSend(clientSocket, dataBuffer, messageLen, 0);
+		messageLen = sendPDU(clientSocket, dataBuffer, messageLen);
 		printf("Socket %d: msg sent: %d bytes, text: %s\n", clientSocket, messageLen, dataBuffer);
 	}
 	else
