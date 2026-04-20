@@ -23,6 +23,7 @@
 
 #include "networks.h"
 #include "safeUtil.h"
+#include "pollLib.h"
 #include "PDU.h"
 
 #define MAXBUF 1024
@@ -30,27 +31,28 @@
 
 void recvFromClient(int clientSocket);
 int checkArgs(int argc, char *argv[]);
+void serverControl(int mainServerSocket);
+void addNewSocket(int mainServerSocket);
+void processClient(int clientSocket);
+
+
+
+
 
 int main(int argc, char *argv[])
 {
 	int mainServerSocket = 0;   //socket descriptor for the server socket
-	int clientSocket = 0;   //socket descriptor for the client socket
+	//int clientSocket = 0;   //socket descriptor for the client socket
 	int portNumber = 0;
 	
 	portNumber = checkArgs(argc, argv);
 	
 	//create the server socket
+	
 	mainServerSocket = tcpServerSetup(portNumber);
-	while(1){
-		// wait for client to connect
-		clientSocket = tcpAccept(mainServerSocket, DEBUG_FLAG);
 	
-	
-		recvFromClient(clientSocket);
-	
-		/* close the sockets */
-		close(clientSocket);
-	}
+	serverControl(mainServerSocket);
+
 	close(mainServerSocket);
 
 	
@@ -80,11 +82,35 @@ void recvFromClient(int clientSocket)
 	else
 	{
 		printf("Socket %d: Connection closed by other side\n", clientSocket);
+		close(clientSocket);
+		removeFromPollSet(clientSocket);
 	}
 
 }
 
+void serverControl(int mainServerSocket){
+	setupPollSet();
+	addToPollSet(mainServerSocket);
 
+	while(1){
+		int socket = pollCall(-1);
+		
+		if(socket == mainServerSocket)	
+			addNewSocket(mainServerSocket);
+		else
+			processClient(socket);
+	}	
+}
+
+void addNewSocket(int mainServerSocket){
+	int clientSocket = tcpAccept(mainServerSocket, DEBUG_FLAG);
+	
+	addToPollSet(clientSocket);	
+}
+
+void processClient(int socket){
+	recvFromClient(socket);			
+}
 
 int checkArgs(int argc, char *argv[])
 {
